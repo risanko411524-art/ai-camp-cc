@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew install:*)",
+      "Bash(gogcli --version)",
+      "Bash(gog --version)",
+      "Bash(gog auth:*)",
+      "Bash(gog drive:*)",
+      "Bash(gog sheets:*)",
+      "Bash(open \"https://docs.google.com/spreadsheets/d/1KGre8qJuLMrmXGmVoLF5Bb7xYAk9WYsiTR0BFMNO5qY\")",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --no-import-alias --use-npm)",
+      "Bash(rm -rf ./* ./.[!.]*)",
+      "Bash(yes)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --no-import-alias --use-npm --turbopack)"
+    ]
+  }
+}
