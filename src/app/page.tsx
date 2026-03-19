@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import MascotCat from "./components/MascotCat";
 
 export default function Home() {
   const router = useRouter();
@@ -38,7 +37,8 @@ export default function Home() {
         throw new Error("送信に失敗しました。");
       }
 
-      router.push("/thanks");
+      const result = await res.json();
+      router.push(`/result?group=${result.group}`);
     } catch {
       setError("送信に失敗しました。もう一度お試しください。");
       setIsSubmitting(false);
@@ -60,17 +60,6 @@ export default function Home() {
         <h1 className="text-lg md:text-xl font-bold text-center text-gray-800 mb-6">
           あなたの現状を教えてください
         </h1>
-
-        <div className="flex flex-col items-center mb-6">
-          <MascotCat className="w-28 h-28 mb-2" />
-          <div className="relative bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-50 border-l border-t border-emerald-200 rotate-45" />
-            <p className="text-sm text-emerald-700 text-center font-medium relative">
-              あなたのことを教えてね！<br />
-              ぴったりのグループを見つけるよ
-            </p>
-          </div>
-        </div>
 
         <p className="text-center text-gray-500 mb-8 text-sm">
           回答をもとに、あなたにぴったりのグループをご案内します
