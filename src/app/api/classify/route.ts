@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const GROUPS = {
-  A: {
-    name: "やりたいこと探索グループ",
-    description: "やりたいことが漠然としていて、まず方向性を見つけたい方向け",
-    chatLink: "https://example.com/openchat/group-a",
-  },
-  B: {
-    name: "強み発見グループ",
-    description: "やりたいことはぼんやりあるが、自分の強みがわからない方向け",
-    chatLink: "https://example.com/openchat/group-b",
-  },
-  C: {
-    name: "はじめの一歩グループ",
-    description: "やりたいことも強みもなんとなくわかるが、行動に移せない方向け",
-    chatLink: "https://example.com/openchat/group-c",
-  },
+  A: { name: "やりたいこと探索グループ" },
+  B: { name: "強み発見グループ" },
+  C: { name: "はじめの一歩グループ" },
 } as const;
 
 type GroupKey = keyof typeof GROUPS;
@@ -78,68 +66,25 @@ ${idealFuture}
   if (answer === "A" || answer === "B" || answer === "C") {
     return answer;
   }
-  // fallback: search for A, B, or C in the response
   if (answer.includes("A")) return "A";
   if (answer.includes("B")) return "B";
   if (answer.includes("C")) return "C";
-  return "B"; // default fallback
-}
-
-async function sendEmailViaConvertKit(
-  email: string,
-  name: string,
-  group: GroupKey
-) {
-  const apiSecret = process.env.CONVERTKIT_API_SECRET;
-  if (!apiSecret) throw new Error("CONVERTKIT_API_SECRET is not set");
-
-  const tagIds: Record<GroupKey, string> = {
-    A: process.env.CONVERTKIT_TAG_A || "",
-    B: process.env.CONVERTKIT_TAG_B || "",
-    C: process.env.CONVERTKIT_TAG_C || "",
-  };
-
-  const tagId = tagIds[group];
-  if (!tagId) {
-    console.warn(`No ConvertKit tag ID for group ${group}, skipping email`);
-    return;
-  }
-
-  // Tag the subscriber in ConvertKit - this triggers the automation/email sequence
-  const res = await fetch(`https://api.convertkit.com/v3/tags/${tagId}/subscribe`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_secret: apiSecret,
-      email,
-      first_name: name,
-    }),
-  });
-
-  if (!res.ok) {
-    const errorBody = await res.text();
-    throw new Error(`ConvertKit API error: ${res.status} ${errorBody}`);
-  }
+  return "B";
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, concern, idealFuture } = await request.json();
+    const { name, concern, idealFuture } = await request.json();
 
-    if (!name || !email || !concern || !idealFuture) {
+    if (!name || !concern || !idealFuture) {
       return NextResponse.json(
         { error: "すべての項目を入力してください" },
         { status: 400 }
       );
     }
 
-    // 1. Claude APIで分類
     const group = await classifyWithClaude(concern, idealFuture);
-    console.log(`Classified ${email} -> Group ${group} (${GROUPS[group].name})`);
-
-    // 2. ConvertKitでタグ付け → 自動メール送信
-    await sendEmailViaConvertKit(email, name, group);
-    console.log(`Tagged ${email} in ConvertKit with group ${group}`);
+    console.log(`Classified ${name} -> Group ${group} (${GROUPS[group].name})`);
 
     return NextResponse.json({
       success: true,
