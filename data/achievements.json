@@ -1,0 +1,55 @@
+{
+  "achievements": [
+    {
+      "id": "ach_1773990258689_zv6yvd",
+      "name": "田中美咲",
+      "job": "ヨガインストラクター",
+      "revenueBefore": 5,
+      "revenueAfter": 30,
+      "strategy": "Instagram毎日発信とLINE構築",
+      "message": "ProjectFに入って人生変わりました！みんなも一緒に頑張ろう！",
+      "reactions": [
+        {
+          "emoji": "👏",
+          "name": "田中美咲",
+          "createdAt": "2026-03-20T07:04:28.796Z"
+        },
+        {
+          "emoji": "🔥",
+          "name": "田中美咲",
+          "createdAt": "2026-03-20T07:04:32.332Z"
+        },
+        {
+          "emoji": "🎉",
+          "name": "佐藤花子",
+          "createdAt": "2026-03-20T07:07:07.455Z"
+        },
+        {
+          "emoji": "👏",
+          "name": "佐藤花子",
+          "createdAt": "2026-03-20T07:07:08.643Z"
+        },
+        {
+          "emoji": "❤️",
+          "name": "佐藤花子",
+          "createdAt": "2026-03-20T07:07:23.211Z"
+        }
+      ],
+      "comments": [
+        {
+          "id": "cmt_1773990288989_269ijh",
+          "name": "田中美咲",
+          "text": "すごい！おめでとうございます！",
+          "createdAt": "2026-03-20T07:04:48.989Z"
+        },
+        {
+          "id": "cmt_1773990436770_l9l4kd",
+          "name": "佐藤花子",
+          "text": "ありがとうございます！",
+          "createdAt": "2026-03-20T07:07:16.770Z"
+        }
+      ],
+      "createdAt": "2026-03-20T07:04:18.689Z"
+    }
+  ]
+}
