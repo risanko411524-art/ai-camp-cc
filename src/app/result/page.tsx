@@ -1,36 +1,47 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 
-const GROUPS = {
+const GROUP_INFO: Record<string, { name: string; description: string }> = {
   A: {
     name: "やりたいこと探索グループ",
     description: "やりたいことがまだ見つかっていない仲間と一緒に、自分だけの方向性を見つけていきましょう！",
-    chatLink: "https://example.com/openchat/group-a",
-    color: "emerald",
   },
   B: {
     name: "強み発見グループ",
     description: "自分の強みがわからない仲間と一緒に、あなただけの武器を見つけていきましょう！",
-    chatLink: "https://example.com/openchat/group-b",
-    color: "blue",
   },
   C: {
     name: "はじめの一歩グループ",
     description: "一歩を踏み出せない仲間と一緒に、行動できる自分に変わっていきましょう！",
-    chatLink: "https://example.com/openchat/group-c",
-    color: "pink",
   },
-} as const;
-
-type GroupKey = keyof typeof GROUPS;
+};
 
 function ResultContent() {
   const searchParams = useSearchParams();
-  const groupKey = searchParams.get("group") as GroupKey | null;
+  const groupKey = searchParams.get("group");
+  const [chatLink, setChatLink] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!groupKey || !GROUPS[groupKey]) {
+  useEffect(() => {
+    async function fetchLink() {
+      try {
+        const res = await fetch("/api/chat-links");
+        const data = await res.json();
+        if (data.links && groupKey && data.links[groupKey]) {
+          setChatLink(data.links[groupKey]);
+        }
+      } catch (e) {
+        console.error("Failed to fetch chat links:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLink();
+  }, [groupKey]);
+
+  if (!groupKey || !GROUP_INFO[groupKey]) {
     return (
       <div className="text-center">
         <p className="text-gray-600">グループ情報が見つかりませんでした。</p>
@@ -38,7 +49,7 @@ function ResultContent() {
     );
   }
 
-  const group = GROUPS[groupKey];
+  const group = GROUP_INFO[groupKey];
 
   return (
     <>
@@ -59,18 +70,36 @@ function ResultContent() {
         </p>
       </div>
 
-      <a
-        href={group.chatLink}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold py-4 rounded-lg transition-all text-lg text-center shadow-md hover:shadow-lg mb-4"
-      >
-        オープンチャットに参加する
-      </a>
+      {loading ? (
+        <p className="text-center text-gray-400 text-sm">リンクを読み込み中...</p>
+      ) : chatLink ? (
+        <a
+          href={chatLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold py-4 rounded-lg transition-all text-lg text-center shadow-md hover:shadow-lg mb-4"
+        >
+          オープンチャットに参加する
+        </a>
+      ) : (
+        <p className="text-center text-gray-400 text-sm mb-4">オープンチャットのリンクは準備中です</p>
+      )}
 
-      <p className="text-center text-gray-400 text-xs">
+      <p className="text-center text-gray-400 text-xs mb-6">
         ※ボタンをタップするとLINEオープンチャットが開きます
       </p>
+
+      <div className="border-t border-gray-100 pt-6">
+        <p className="text-center text-gray-500 text-sm mb-3">
+          メールで届いた受講生IDでログインできます
+        </p>
+        <a
+          href="/login"
+          className="block w-full border-2 border-emerald-400 text-emerald-600 font-bold py-3 rounded-lg text-center hover:bg-emerald-50 transition-colors"
+        >
+          マイページにログイン
+        </a>
+      </div>
     </>
   );
 }

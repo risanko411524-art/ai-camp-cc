@@ -14,23 +14,26 @@ export default function Home() {
     setError("");
 
     const form = e.currentTarget;
-    const data = {
-      name: (form.elements.namedItem("name") as HTMLInputElement).value,
-      email: (form.elements.namedItem("email") as HTMLInputElement).value,
-      gender: (form.elements.namedItem("gender") as HTMLSelectElement).value,
-      location: (form.elements.namedItem("location") as HTMLSelectElement).value,
-      career: (form.elements.namedItem("career") as HTMLTextAreaElement).value,
-      concern: (form.elements.namedItem("concern") as HTMLTextAreaElement).value,
-      idealFuture: (form.elements.namedItem("idealFuture") as HTMLTextAreaElement).value,
-      availableHours: (form.elements.namedItem("availableHours") as HTMLSelectElement).value,
-      aiLevel: (form.elements.namedItem("aiLevel") as HTMLInputElement).value,
-    };
+    const formData = new FormData();
+    formData.append("name", (form.elements.namedItem("name") as HTMLInputElement).value);
+    formData.append("email", (form.elements.namedItem("email") as HTMLInputElement).value);
+    formData.append("gender", (form.elements.namedItem("gender") as HTMLSelectElement).value);
+    formData.append("location", (form.elements.namedItem("location") as HTMLSelectElement).value);
+    formData.append("career", (form.elements.namedItem("career") as HTMLTextAreaElement).value);
+    formData.append("concern", (form.elements.namedItem("concern") as HTMLTextAreaElement).value);
+    formData.append("idealFuture", (form.elements.namedItem("idealFuture") as HTMLTextAreaElement).value);
+    formData.append("availableHours", (form.elements.namedItem("availableHours") as HTMLSelectElement).value);
+    formData.append("aiLevel", (form.elements.namedItem("aiLevel") as HTMLInputElement).value);
+
+    const photoInput = form.elements.namedItem("photo") as HTMLInputElement;
+    if (photoInput.files && photoInput.files[0]) {
+      formData.append("photo", photoInput.files[0]);
+    }
 
     try {
       const res = await fetch("/api/classify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -188,6 +191,19 @@ export default function Home() {
                 <option value="海外">海外</option>
               </optgroup>
             </select>
+          </div>
+
+          <div>
+            <label htmlFor="photo" className="block text-sm font-medium text-gray-700 mb-1">
+              顔写真（任意）
+            </label>
+            <input
+              id="photo"
+              name="photo"
+              type="file"
+              accept="image/*"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+            />
           </div>
 
           <div>

@@ -8,8 +8,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "お悩みヒアリング",
-  description: "あなたにぴったりのグループをご案内します",
+  title: "バナナグループ ビジネス加速アプリ",
+  description: "毎日の行動を記録して、ビジネスを加速させよう！",
 };
 
 export default function RootLayout({
