@@ -40,8 +40,8 @@ export default function Home() {
         throw new Error("送信に失敗しました。");
       }
 
-      const result = await res.json();
-      router.push(`/result?group=${result.group}`);
+      await res.json();
+      router.push("/result");
     } catch {
       setError("送信に失敗しました。もう一度お試しください。");
       setIsSubmitting(false);
@@ -65,7 +65,7 @@ export default function Home() {
         </h1>
 
         <p className="text-center text-gray-500 mb-8 text-sm">
-          回答をもとに、あなたにぴったりのグループをご案内します
+          入力完了後、受講生番号をメールでお届けします
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">

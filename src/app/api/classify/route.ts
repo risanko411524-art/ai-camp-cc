@@ -4,77 +4,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const GROUPS = {
-  A: { name: "やりたいこと探索グループ" },
-  B: { name: "強み発見グループ" },
-  C: { name: "はじめの一歩グループ" },
-} as const;
-
-type GroupKey = keyof typeof GROUPS;
-
-async function classifyWithClaude(concern: string, idealFuture: string): Promise<GroupKey> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 10,
-      messages: [
-        {
-          role: "user",
-          content: `あなたはビジネス初心者の受講生を3つのグループに分類するアシスタントです。
-
-以下の3グループのうち、最も適切なグループを1つだけ選んでください。
-回答はA、B、Cのいずれか1文字のみで答えてください。
-
-【グループA: やりたいこと探索グループ】
-対象: やりたいことがまだ見つかっていない、何から始めればいいかわからない人
-特徴: 漠然とした不安、方向性が定まっていない、選択肢が多すぎて決められない
-
-【グループB: 強み発見グループ】
-対象: やりたいことはぼんやりあるが、自分の強み・スキルがわからない人
-特徴: 自分に自信がない、何が得意かわからない、差別化できるものがないと思っている
-
-【グループC: はじめの一歩グループ】
-対象: やりたいことも強みもなんとなくわかるが、行動に移せない人
-特徴: 完璧主義、失敗が怖い、具体的な進め方がわからない
-
----
-【受講生のお悩み】
-${concern}
-
-【3ヶ月後の理想の未来】
-${idealFuture}
-
-回答（A, B, Cのいずれか1文字）:`,
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) {
-    const errorBody = await res.text();
-    throw new Error(`Claude API error: ${res.status} ${errorBody}`);
-  }
-
-  const data = await res.json();
-  const answer = data.content[0].text.trim().toUpperCase();
-
-  if (answer === "A" || answer === "B" || answer === "C") {
-    return answer;
-  }
-  if (answer.includes("A")) return "A";
-  if (answer.includes("B")) return "B";
-  if (answer.includes("C")) return "C";
-  return "B";
-}
+const OPENCHAT_LINK = "https://line.me/ti/g2/XXXXXX"; // TODO: 総合オプチャのリンクに差し替え
 
 function formatStudentNumber(num: number): string {
   return `TSU-${String(num).padStart(4, "0")}`;
@@ -84,8 +14,9 @@ async function sendStudentNumberEmail(
   email: string,
   name: string,
   studentNumberFormatted: string,
-  groupName: string,
 ) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-camp-cc.vercel.app";
+
   await resend.emails.send({
     from: "The Start Up <onboarding@resend.dev>",
     to: email,
@@ -98,16 +29,29 @@ async function sendStudentNumberEmail(
         <div style="background: #f0fdf4; border-radius: 12px; padding: 24px; margin: 20px 0;">
           <p style="margin: 0 0 16px 0; font-size: 16px;">${name} さん、ご登録ありがとうございます！</p>
           <p style="margin: 0 0 8px 0; font-size: 14px; color: #666;">あなたの受講生番号</p>
-          <p style="margin: 0 0 16px 0; font-size: 32px; font-weight: bold; color: #059669; text-align: center; letter-spacing: 2px;">
+          <p style="margin: 0 0 24px 0; font-size: 32px; font-weight: bold; color: #059669; text-align: center; letter-spacing: 2px;">
             ${studentNumberFormatted}
           </p>
-          <p style="margin: 0 0 8px 0; font-size: 14px; color: #666;">配属グループ</p>
-          <p style="margin: 0; font-size: 20px; font-weight: bold; text-align: center;">
-            ${groupName}
-          </p>
         </div>
+
+        <div style="margin: 24px 0;">
+          <p style="font-size: 15px; font-weight: bold; margin: 0 0 12px 0;">📌 次のステップ</p>
+
+          <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 0 0 12px 0;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold;">① 総合オープンチャットに参加</p>
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">受講生全員が参加するコミュニティです。</p>
+            <a href="${OPENCHAT_LINK}" style="display: inline-block; background: #059669; color: #fff; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold;">オープンチャットに参加する</a>
+          </div>
+
+          <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold;">② マイページにログイン</p>
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">受講生番号でログインして、プロフィールを確認できます。</p>
+            <a href="${siteUrl}/login" style="display: inline-block; background: #059669; color: #fff; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold;">マイページにログイン</a>
+          </div>
+        </div>
+
         <p style="font-size: 13px; color: #888; text-align: center;">
-          この番号は講座で使用しますので、大切に保管してください。
+          受講生番号は講座で使用しますので、大切に保管してください。
         </p>
       </div>
     `,
@@ -129,15 +73,12 @@ export async function POST(request: NextRequest) {
     const aiLevel = formData.get("aiLevel") as string;
     const photo = formData.get("photo") as File | null;
 
-    if (!name || !concern || !idealFuture) {
+    if (!name || !email) {
       return NextResponse.json(
-        { error: "すべての項目を入力してください" },
+        { error: "お名前とメールアドレスは必須です" },
         { status: 400 }
       );
     }
-
-    const group = await classifyWithClaude(concern, idealFuture);
-    console.log(`Classified ${name} -> Group ${group} (${GROUPS[group].name})`);
 
     let photoUrl: string | null = null;
 
@@ -175,7 +116,7 @@ export async function POST(request: NextRequest) {
         ideal_future: idealFuture,
         available_hours: availableHours,
         ai_level: aiLevel,
-        group_key: group,
+        group_key: "ALL",
         photo_url: photoUrl,
       })
       .select("student_number")
@@ -190,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     // メール送信（エラーが出ても処理は続行）
     try {
-      await sendStudentNumberEmail(email, name, studentNumberFormatted, GROUPS[group].name);
+      await sendStudentNumberEmail(email, name, studentNumberFormatted);
       console.log(`Email sent to ${email} with student number ${studentNumberFormatted}`);
     } catch (emailError) {
       console.error("Email send error:", emailError);
@@ -198,12 +139,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      group,
-      groupName: GROUPS[group].name,
       studentNumber: studentNumberFormatted,
     });
   } catch (error) {
-    console.error("Classification error:", error);
+    console.error("Registration error:", error);
     return NextResponse.json(
       { error: "処理中にエラーが発生しました" },
       { status: 500 }
