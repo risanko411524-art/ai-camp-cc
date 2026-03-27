@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   const password = request.headers.get("x-admin-password");
-  if (password !== process.env.ADMIN_PASSWORD) {
+  if (password !== process.env.TEACHER_PASSWORD) {
     return NextResponse.json({ error: "認証に失敗しました" }, { status: 401 });
   }
 
