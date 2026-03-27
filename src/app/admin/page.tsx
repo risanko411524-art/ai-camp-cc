@@ -1,254 +1,499 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import BananaRisaCharacter from "../components/BananaRisaCharacter";
 import Link from "next/link";
 
-type AdminData = {
-  summary: {
-    totalMembers: number;
-    activeMembers: number;
-    totalContents: number;
-    achieverCount: number;
-  };
-  concernDistribution: {
-    concern: string;
-    count: number;
-    percentage: number;
-  }[];
-  contentGap: {
-    category: string;
-    demandCount: number;
-    demandPercent: number;
-    contentCount: number;
-    gap: string;
-  }[];
-  members: {
-    name: string;
-    joinDate: string;
-    job: string;
-    mainConcern: string;
-    hasAchievement: boolean;
-  }[];
-};
+interface StudentWithLog {
+  id: string;
+  name: string;
+  business_stage: string;
+  missing_element: string;
+  concern: string;
+  ideal_future: string;
+  monthly_goals: string;
+  main_activity: string;
+  note_to_risa: string;
+  created_at: string;
+  last_log_date: string | null;
+  days_since_last_log: number | null;
+  needs_alert: boolean;
+}
+
+interface DailyLog {
+  id: string;
+  date: string;
+  group_consulting: boolean;
+  core_live: boolean;
+  seminar: boolean;
+  content_viewing: boolean;
+  sns_reel: boolean;
+  sns_threads: boolean;
+  sns_stories: boolean;
+  sns_live: boolean;
+  sales_offer: boolean;
+  description: string;
+  ai_message: string;
+}
 
 export default function AdminPage() {
-  const [data, setData] = useState<AdminData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [password, setPassword] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [students, setStudents] = useState<StudentWithLog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<StudentWithLog | null>(null);
+  const [studentLogs, setStudentLogs] = useState<DailyLog[]>([]);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [analysis, setAnalysis] = useState("");
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [analysisLoaded, setAnalysisLoaded] = useState(false);
 
+  // ログイン後に自動でAI分析を取得
   useEffect(() => {
-    fetch("/api/admin")
-      .then((res) => res.json())
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      });
-  }, []);
+    if (authenticated && students.length > 0 && !analysisLoaded) {
+      // fetchAnalysisは下で定義 - 直接インラインで実行
+      (async () => {
+        setLoadingAnalysis(true);
+        try {
+          // ステージ分布を計算
+          const sd: Record<string, number> = {};
+          const md: Record<string, number> = {};
+          students.forEach((s) => {
+            const stageShort = s.business_stage.replace(/Stage \d：/, "Stage " + s.business_stage.match(/Stage (\d)/)?.[1] + ": ");
+            sd[stageShort] = (sd[stageShort] || 0) + 1;
+            const elementShort = s.missing_element.replace(/（.*?）/, "");
+            md[elementShort] = (md[elementShort] || 0) + 1;
+          });
+          const res = await fetch("/api/admin/analysis", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-admin-password": password,
+            },
+            body: JSON.stringify({
+              stageDistribution: sd,
+              missingElementDistribution: md,
+              totalStudents: students.length,
+            }),
+          });
+          const data = await res.json();
+          setAnalysis(data.analysis);
+          setAnalysisLoaded(true);
+        } catch {
+          setAnalysis("分析の取得に失敗しました。");
+        } finally {
+          setLoadingAnalysis(false);
+        }
+      })();
+    }
+  }, [authenticated, students.length]);
 
-  if (loading) {
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/admin/students", {
+        headers: { "x-admin-password": password },
+      });
+
+      if (!res.ok) {
+        setError("パスワードが正しくありません");
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      setStudents(data.students);
+      setAuthenticated(true);
+    } catch {
+      setError("エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openDetail(student: StudentWithLog) {
+    setSelectedStudent(student);
+    setLoadingDetail(true);
+
+    try {
+      const res = await fetch(`/api/admin/student/${student.id}`, {
+        headers: { "x-admin-password": password },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStudentLogs(data.logs);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
+
+  // ログインページ
+  if (!authenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500 text-lg">読み込み中...</p>
-      </div>
+      <main className="min-h-screen bg-gradient-to-b from-yellow-50 via-yellow-100/30 to-white flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8 border border-yellow-200 text-center">
+          <BananaRisaCharacter mood="normal" size={120} />
+          <h1 className="text-xl font-bold text-yellow-800 mt-4 mb-6">
+            講師用管理ページ
+          </h1>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="パスワード"
+              required
+              className="w-full rounded-lg border border-yellow-300 px-4 py-3 text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-center"
+            />
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-yellow-900 font-bold py-3 rounded-lg transition-all cursor-pointer shadow-md hover:shadow-lg disabled:opacity-50"
+            >
+              {loading ? "確認中..." : "ログイン"}
+            </button>
+          </form>
+          <Link href="/" className="inline-block mt-4 text-yellow-600 text-sm underline">
+            トップへ戻る
+          </Link>
+        </div>
+      </main>
     );
   }
 
-  if (!data) return null;
+  // 詳細表示
+  if (selectedStudent) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-yellow-50 via-yellow-100/30 to-white px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <button
+            onClick={() => setSelectedStudent(null)}
+            className="text-yellow-600 hover:text-yellow-800 mb-4 flex items-center gap-1 cursor-pointer"
+          >
+            ← 一覧に戻る
+          </button>
 
-  const maxConcernCount = Math.max(...data.concernDistribution.map((c) => c.count));
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-yellow-200 mb-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-yellow-800">{selectedStudent.name}</h1>
+                <p className="text-sm text-yellow-600">{selectedStudent.business_stage}</p>
+              </div>
+              {selectedStudent.needs_alert && (
+                <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full">
+                  ⚠️ {selectedStudent.days_since_last_log === null ? "未入力" : `${selectedStudent.days_since_last_log}日未入力`}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="font-semibold text-yellow-700">足りない要素</p>
+                <p className="text-gray-700">{selectedStudent.missing_element}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-yellow-700">悩み・課題</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{selectedStudent.concern}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-yellow-700">3ヶ月後の理想</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{selectedStudent.ideal_future}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-yellow-700">今月の行動目標</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{selectedStudent.monthly_goals}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-yellow-700">最も時間を割いている作業</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{selectedStudent.main_activity}</p>
+              </div>
+              {selectedStudent.note_to_risa && (
+                <div>
+                  <p className="font-semibold text-yellow-700">りさへのメモ</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedStudent.note_to_risa}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 活動履歴 */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-yellow-200">
+            <h2 className="text-lg font-bold text-yellow-800 mb-4">📅 活動履歴</h2>
+            {loadingDetail ? (
+              <p className="text-yellow-600 text-center py-4">読み込み中...</p>
+            ) : studentLogs.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">まだ活動記録がありません</p>
+            ) : (
+              <div className="space-y-4">
+                {studentLogs.map((log) => {
+                  const activities = [
+                    log.group_consulting && "グルコン",
+                    log.core_live && "コアライブ",
+                    log.seminar && "セミナー",
+                    log.content_viewing && "視聴",
+                    log.sns_reel && "リール",
+                    log.sns_threads && "スレッズ",
+                    log.sns_stories && "ストーリーズ",
+                    log.sns_live && "ライブ",
+                    log.sales_offer && "オファー",
+                  ].filter(Boolean);
+
+                  return (
+                    <div key={log.id} className="border-b border-yellow-100 pb-3 last:border-0">
+                      <p className="font-semibold text-yellow-800">{log.date}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {activities.map((a) => (
+                          <span
+                            key={a as string}
+                            className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full"
+                          >
+                            {a}
+                          </span>
+                        ))}
+                        {activities.length === 0 && (
+                          <span className="text-xs text-gray-400">アクティビティなし</span>
+                        )}
+                      </div>
+                      {log.description && (
+                        <p className="text-sm text-gray-600 mt-1">{log.description}</p>
+                      )}
+                      {log.ai_message && (
+                        <p className="text-sm text-yellow-700 mt-1 italic">💬 {log.ai_message}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 一覧表示
+  const alertCount = students.filter((s) => s.needs_alert).length;
+
+  // ステージ分布を計算
+  const stageDistribution: Record<string, number> = {};
+  const missingElementDistribution: Record<string, number> = {};
+  students.forEach((s) => {
+    const stageShort = s.business_stage.replace(/Stage \d：/, "Stage " + s.business_stage.match(/Stage (\d)/)?.[1] + ": ");
+    stageDistribution[stageShort] = (stageDistribution[stageShort] || 0) + 1;
+    const elementShort = s.missing_element.replace(/（.*?）/, "");
+    missingElementDistribution[elementShort] = (missingElementDistribution[elementShort] || 0) + 1;
+  });
+  const maxStageCount = Math.max(...Object.values(stageDistribution), 1);
+
+  async function fetchAnalysis() {
+    if (analysisLoaded) return;
+    setLoadingAnalysis(true);
+    try {
+      const res = await fetch("/api/admin/analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password,
+        },
+        body: JSON.stringify({
+          stageDistribution,
+          missingElementDistribution,
+          totalStudents: students.length,
+        }),
+      });
+      const data = await res.json();
+      setAnalysis(data.analysis);
+      setAnalysisLoaded(true);
+    } catch {
+      setAnalysis("分析の取得に失敗しました。");
+    } finally {
+      setLoadingAnalysis(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">運営ダッシュボード</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              受講生の課題分析 & コンテンツレコメンド管理
+    <main className="min-h-screen bg-gradient-to-b from-yellow-50 via-yellow-100/30 to-white px-4 py-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-yellow-800">🍌 管理ダッシュボード</h1>
+          <Link href="/" className="text-yellow-600 text-sm underline hover:text-yellow-800">
+            トップへ
+          </Link>
+        </div>
+
+        {/* サマリー */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-xl shadow-md p-4 border border-yellow-200 text-center">
+            <p className="text-yellow-600 text-sm">受講生数</p>
+            <p className="text-3xl font-bold text-yellow-800">{students.length}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 border border-yellow-200 text-center">
+            <p className="text-yellow-600 text-sm">要フォロー</p>
+            <p className={`text-3xl font-bold ${alertCount > 0 ? "text-red-600" : "text-green-600"}`}>
+              {alertCount}人
             </p>
           </div>
-          <span className="text-emerald-600 font-bold text-xl tracking-widest">
-            ProjectF
-          </span>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <SummaryCard label="総受講生数" value={data.summary.totalMembers} unit="名" />
-          <SummaryCard label="在籍中" value={data.summary.activeMembers} unit="名" />
-          <SummaryCard label="コンテンツ数" value={data.summary.totalContents} unit="本" />
-          <SummaryCard label="成果報告者" value={data.summary.achieverCount} unit="名" />
         </div>
 
-        {/* Content Gap Analysis */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">
-            コンテンツギャップ分析
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            受講生の課題（需要）と既存コンテンツ（供給）の差分
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">カテゴリ</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">需要（件数）</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">需要（%）</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">コンテンツ数</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">充足度</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">アクション</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.contentGap.map((row) => (
-                  <tr key={row.category} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{row.category}</td>
-                    <td className="py-3 px-4 text-center text-gray-700">{row.demandCount}</td>
-                    <td className="py-3 px-4 text-center text-gray-700">{row.demandPercent}%</td>
-                    <td className="py-3 px-4 text-center text-gray-700">{row.contentCount}本</td>
-                    <td className="py-3 px-4 text-center">
-                      <GapBadge gap={row.gap} />
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">
-                      {row.gap === "なし"
-                        ? "最優先でコンテンツ作成"
-                        : row.gap === "不足"
-                          ? "コンテンツ追加を検討"
-                          : "現状維持"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Concern Distribution */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">
-            受講生の課題分布
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            事前課題・グルコン・セッションから集計した悩み
-          </p>
+        {/* ステージ分布 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-yellow-200 mb-6">
+          <h2 className="text-lg font-bold text-yellow-800 mb-4">📊 ビジネスステージ分布</h2>
           <div className="space-y-3">
-            {data.concernDistribution.slice(0, 15).map((item) => (
-              <div key={item.concern} className="flex items-center gap-4">
-                <div className="w-56 text-sm text-gray-700 shrink-0 truncate">
-                  {item.concern}
-                </div>
-                <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full rounded-full flex items-center justify-end pr-2"
-                    style={{ width: `${(item.count / maxConcernCount) * 100}%` }}
-                  >
-                    <span className="text-xs text-white font-medium">{item.count}</span>
-                  </div>
-                </div>
-                <div className="w-12 text-right text-sm text-gray-500">{item.percentage}%</div>
-              </div>
-            ))}
-          </div>
-        </section>
+            {Object.entries(stageDistribution)
+              .sort(([a], [b]) => {
+                const numA = parseInt(a.match(/\d/)?.[0] || "0");
+                const numB = parseInt(b.match(/\d/)?.[0] || "0");
+                return numA - numB;
+              })
+              .map(([stage, count]) => {
+                const stageNum = stage.match(/Stage (\d)/)?.[1] || "?";
+                const stageLabel = stage.replace(/Stage \d: /, "");
+                const percentage = Math.round((count / students.length) * 100);
+                const barWidth = Math.round((count / maxStageCount) * 100);
+                const colors = [
+                  "", // 0
+                  "bg-red-300",    // Stage 1
+                  "bg-orange-300", // Stage 2
+                  "bg-yellow-400", // Stage 3
+                  "bg-lime-400",   // Stage 4
+                  "bg-green-400",  // Stage 5
+                  "bg-emerald-500", // Stage 6
+                ];
+                const color = colors[parseInt(stageNum)] || "bg-yellow-400";
 
-        {/* Member List with Recommendations */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">
-            受講生一覧 & おすすめコンテンツ
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            各受講生をクリックすると個別の詳細・おすすめコンテンツが見られます
-          </p>
+                return (
+                  <div key={stage}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-gray-700 font-medium truncate flex-1 mr-2">
+                        <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full mr-1">
+                          S{stageNum}
+                        </span>
+                        {stageLabel}
+                      </span>
+                      <span className="text-yellow-800 font-bold whitespace-nowrap">{count}名 ({percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+                      <div
+                        className={`${color} h-4 rounded-full transition-all duration-500`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* 足りない要素の分布 */}
+          <h3 className="text-md font-bold text-yellow-800 mt-6 mb-3">🔍 足りない要素</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(missingElementDistribution)
+              .sort(([, a], [, b]) => b - a)
+              .map(([element, count]) => {
+                const percentage = Math.round((count / students.length) * 100);
+                const icons: Record<string, string> = {
+                  "スキル・知識": "📚",
+                  "時間": "⏰",
+                  "マインド": "💭",
+                  "環境": "🤝",
+                };
+                const icon = Object.entries(icons).find(([k]) => element.includes(k))?.[1] || "📌";
+                return (
+                  <div key={element} className="bg-yellow-50 rounded-lg p-3 text-center border border-yellow-100">
+                    <p className="text-2xl">{icon}</p>
+                    <p className="text-xs text-gray-600 mt-1">{element}</p>
+                    <p className="text-lg font-bold text-yellow-800">{count}名 <span className="text-xs font-normal">({percentage}%)</span></p>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* AI分析 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-yellow-200 mb-6">
+          <h2 className="text-lg font-bold text-yellow-800 mb-4">🤖 AI分析・情報提供アドバイス</h2>
+          {loadingAnalysis ? (
+            <div className="text-center py-6">
+              <p className="text-yellow-600 animate-pulse">分析中... 🍌</p>
+            </div>
+          ) : analysis ? (
+            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{analysis}</div>
+          ) : (
+            <button
+              onClick={fetchAnalysis}
+              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-yellow-900 font-bold py-3 rounded-lg transition-all cursor-pointer"
+            >
+              分析を実行する
+            </button>
+          )}
+          {analysisLoaded && (
+            <button
+              onClick={() => { setAnalysisLoaded(false); setAnalysis(""); setTimeout(fetchAnalysis, 100); }}
+              className="mt-3 text-sm text-yellow-600 underline hover:text-yellow-800 cursor-pointer"
+            >
+              再分析する
+            </button>
+          )}
+        </div>
+
+        {/* 受講生一覧 */}
+        <div className="bg-white rounded-2xl shadow-lg border border-yellow-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">名前</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">職種</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">入会日</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">主な課題</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">成果</th>
+                <tr className="bg-yellow-100 border-b border-yellow-200">
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-yellow-800">名前</th>
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-yellow-800">ステージ</th>
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-yellow-800">最終入力</th>
+                  <th className="text-center px-4 py-3 text-sm font-semibold text-yellow-800">状態</th>
                 </tr>
               </thead>
               <tbody>
-                {data.members.map((m) => (
+                {students.map((student) => (
                   <tr
-                    key={m.name}
-                    className="border-b border-gray-100 hover:bg-emerald-50 cursor-pointer"
+                    key={student.id}
+                    onClick={() => openDetail(student)}
+                    className="border-b border-yellow-50 hover:bg-yellow-50 cursor-pointer transition-colors"
                   >
-                    <td className="py-3 px-4">
-                      <Link
-                        href={`/admin/member/${encodeURIComponent(m.name)}`}
-                        className="text-emerald-600 font-medium hover:underline"
-                      >
-                        {m.name}
-                      </Link>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-800">{student.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {student.business_stage.replace(/Stage \d：/, "")}
                     </td>
-                    <td className="py-3 px-4 text-gray-700">{m.job}</td>
-                    <td className="py-3 px-4 text-gray-700">{m.joinDate}</td>
-                    <td className="py-3 px-4 text-gray-700">{m.mainConcern}</td>
-                    <td className="py-3 px-4 text-center">
-                      {m.hasAchievement ? (
-                        <span className="inline-block bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-1 rounded-full">
-                          あり
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {student.last_log_date || "未入力"}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {student.needs_alert ? (
+                        <span className="inline-block bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
+                          ⚠️ 要フォロー
                         </span>
                       ) : (
-                        <span className="inline-block bg-gray-100 text-gray-500 text-xs font-medium px-2 py-1 rounded-full">
-                          なし
+                        <span className="inline-block bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+                          ✅ 活動中
                         </span>
                       )}
                     </td>
                   </tr>
                 ))}
+                {students.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                      まだ受講生がいません
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        </section>
-      </main>
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: number;
-  unit: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 mt-1">
-        {value}
-        <span className="text-base font-normal text-gray-500 ml-1">{unit}</span>
-      </p>
-    </div>
-  );
-}
-
-function GapBadge({ gap }: { gap: string }) {
-  if (gap === "なし") {
-    return (
-      <span className="inline-block bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-full">
-        なし
-      </span>
-    );
-  }
-  if (gap === "不足") {
-    return (
-      <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-full">
-        不足
-      </span>
-    );
-  }
-  return (
-    <span className="inline-block bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-1 rounded-full">
-      充実
-    </span>
+        </div>
+      </div>
+    </main>
   );
 }
